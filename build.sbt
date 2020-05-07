@@ -10,4 +10,6 @@ libraryDependencies += "org.apache.flink" %% "flink-scala" % "1.9.2"
 libraryDependencies += "org.apache.flink" % "flink-core" % "1.9.2"
 libraryDependencies += "org.apache.flink" % "flink-table" % "1.9.2" % "provided" pomOnly()
 libraryDependencies += "org.apache.flink" %% "flink-streaming-scala" % "1.9.2"
+libraryDependencies += "org.apache.flink" %% "flink-connector-kafka" % "1.9.2"
+
 
