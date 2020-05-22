@@ -29,39 +29,76 @@ object WindowFunctionAgg {
 
     val parsed = stream2.map(x=> {
       val arr = x.split(",")
-      (arr(0).toInt, arr(1), arr(2).toInt)
+      AlarmasIn(arr(0).toInt, arr(1), arr(2), arr(3))
     })
 
 
     parsed
-    .keyBy(x => x._2) // key by product id.
-      .window(TumblingProcessingTimeWindows.of(Time.seconds(60)))
+    .keyBy(_.country) // key by product id.
+      .window(TumblingProcessingTimeWindows.of(Time.seconds(30)))
       .process(new ProcessWindowFunction[
-        (Int, String, Int), (Int, String, Int, Int), String, TimeWindow   //, String, Int, Int
+        AlarmasIn, AlarmasOut, String, TimeWindow
       ]() {
         override def process(key: String, context: Context,
-                             elements: Iterable[(Int, String, Int)],
-                             out: Collector[(Int, String, Int, Int)]): Unit = {  //, String, Int, Int
+                             elements: Iterable[AlarmasIn],
+                             out: Collector[AlarmasOut]): Unit = {
           val lst = elements.toList
-          lst.foreach(x => out.collect((x._1, x._2, x._3, lst.size)))
-
-
+          lst.foreach(x => out.collect(AlarmasOut(x.id, x.country, x.city,x.address, lst.size,0,0)))
       }
-      }).print()
+      })
+      .keyBy( _.city).window(TumblingProcessingTimeWindows.of(Time.seconds(1)))
+        .process(new ProcessWindowFunction[
+          AlarmasOut, AlarmasOut, String, TimeWindow
+        ]() {
+          override def process(key: String,
+                               context: Context,
+                               elements: Iterable[AlarmasOut],
+                               out: Collector[AlarmasOut]): Unit = {
+            val lst = elements.toList
+            lst.foreach(x => out.collect(AlarmasOut(x.id, x.country, x.city,x.address,x.c_country,lst.size,x.c_addr)))
+          }
+        })
+      .keyBy( _.address).window(TumblingProcessingTimeWindows.of(Time.seconds(1)))
+      .process(new ProcessWindowFunction[
+        AlarmasOut, AlarmasOut, String, TimeWindow
+      ]() {
+        override def process(key: String,
+                             context: Context,
+                             elements: Iterable[AlarmasOut],
+                             out: Collector[AlarmasOut]): Unit = {
+          val lst = elements.toList
+          lst.foreach(x => out.collect(AlarmasOut(x.id, x.country, x.city,x.address,x.c_country,x.c_city,lst.size)))
+        }
+      })
+      .print()
 
 
-
-
-    //windowCounts.print()
 
     senv.execute("kafka Window WordCount")
 
   }
 
+
   // *************************************************************************
   //      DATA TYPES
   // *************************************************************************
 
-  case class Order(user: Int, product: String, amount: Int)
+  case class AlarmasIn(
+                      id: Int,
+                      country: String,
+                      city: String,
+                      address: String
+                    )
+
+  case class AlarmasOut(
+                       id: Int,
+                       country: String,
+                       city: String,
+                       address: String,
+                       c_country: Int,
+                       c_city: Int,
+                       c_addr: Int
+                     )
+
 
 }
